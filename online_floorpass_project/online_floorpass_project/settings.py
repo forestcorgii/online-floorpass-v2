@@ -25,7 +25,7 @@ SECRET_KEY = 'epi-2w#kuhksq&lfux^c(*zv80p2ml6wh4$kjqffv4g(u3rd@@'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-# ALLOWED_HOSTS = ['104.197.214.104']
+ALLOWED_HOSTS = ['104.197.214.104']
 
 
 # Application definition
