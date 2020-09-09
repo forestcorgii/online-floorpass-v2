@@ -23,15 +23,15 @@ def filter(request):
     if request.method == 'GET':
         floorpass = FloorPass.objects.all()
 
-        if request.GET.get('supervisor_id', False):
+        if request.GET.get('username', False) or request.GET['username'] !='':
             floorpass = floorpass.filter(
-                supervisor_id=request.GET['supervisor_id'])
-        else:
-            if request.GET.get('department', False):
-                floorpass = floorpass.filter(
-                    department=request.GET['department'])
-            if request.GET.get('location', False):
-                floorpass = floorpass.filter(location=request.GET['location'])
+                supervisor_id__iexact=request.GET['username'])
+        # else:
+        if request.GET.get('department', False) or request.GET['department'] !='':
+            floorpass = floorpass.filter(
+                    department=Department.objects.filter(name__iexact=request.GET['department'])[0].name)
+        if request.GET.get('location', False) or request.GET['location'] != '':
+            floorpass = floorpass.filter(location=Location.objects.filter(name__iexact=request.GET['location'])[0].name)
 
         if request.GET.get('sort', False):
             if 'latest_log_date' in request.GET['sort']:
