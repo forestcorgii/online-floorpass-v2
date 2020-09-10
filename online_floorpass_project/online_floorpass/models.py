@@ -35,7 +35,7 @@ class FloorPass(models.Model):
         if log_count == 0:
             return timezone.now().strftime("%m-%d %H:%M:%S")
         else:
-            return self.log_set.all()[log_count - 1].logdatetime.strftime("%m-%d %H:%M:%S")
+            return self.log_set.all()[log_count - 1].logdatetime_str
 
     def status_label(self):
         if self.status is None:
@@ -53,14 +53,14 @@ class FloorPass(models.Model):
         if len(self.log_set.all()) == 0:
             return ''
         else:
-            return self.log_set.all()[0].logdatetime.strftime("%m-%d %H:%M:%S")
+            return self.log_set.all()[0].logdatetime_str
 
     def timeout(self):
         log_count = len(self.log_set.all())
         if log_count <= 1:
             return ''
         elif log_count > 1 and self.location.name == self.log_set.all()[log_count - 1].location:
-            return self.log_set.all()[log_count - 1].logdatetime.strftime("%m-%d %H:%M:%S")
+            return self.log_set.all()[log_count - 1].logdatetime_str
 
     def time_elapse(self):
         log_count = len(self.log_set.all())
@@ -78,6 +78,11 @@ class Log(models.Model):
     logdatetime = models.DateTimeField(auto_now_add=True)
     floorpass = models.ForeignKey(FloorPass, on_delete=models.CASCADE)
     location = models.CharField(max_length=100, null=True)
+
+    @property
+    def logdatetime_str(self):
+        return self.logdatetime.strftime("%Y-%m-%d %H:%M:%S")
+
 
 
 class User(models.Model):

@@ -5,7 +5,7 @@ from .models import FloorPass, Log, User
 class LogSerializer(serializers.ModelSerializer):
     class Meta:
         model = Log
-        fields = '__all__'
+        fields = ['id','guard_id','logdatetime_str','location','floorpass']
 
 
 class UserSerializer(serializers.ModelSerializer):
