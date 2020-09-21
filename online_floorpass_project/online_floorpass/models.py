@@ -7,15 +7,15 @@ from django.db import models
 from django.utils import timezone
 
 
-class Location(models.Model):
-    name = models.CharField(max_length=100, primary_key=True)
-    objects = models.Manager()
-
 
 class Department(models.Model):
     name = models.CharField(max_length=100, primary_key=True)
     objects = models.Manager()
 
+class Location(models.Model):
+    name = models.CharField(max_length=100, primary_key=True)
+    departments = models.ManyToManyField(Department)
+    objects = models.Manager()
 
 class FloorPass(models.Model):
     location = models.ForeignKey(Location, on_delete=models.CASCADE, null=True)
@@ -89,6 +89,8 @@ class User(models.Model):
     floorpass = models.ForeignKey(FloorPass, on_delete=models.CASCADE)
     employee_id = models.CharField(max_length=4, null=True)
     employee_name = models.TextField(null=True)
+    
+
 
     def duplicate(self):
         return not self.objects.filter(Location, pk=self.employee_id) is None

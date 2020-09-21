@@ -12,11 +12,16 @@ urlpatterns = format_suffix_patterns([
 
     re_path('^list/$', api.list),
 
-    path('floorpass/', api.FloorPassList.as_view(), name='floorpass-list'),
-    path('floorpass/<int:pk>/', api.FloorPassDetail.as_view(),
-         name='floorpass-detail'),
+    # path('floorpass/', api.FloorPassList.as_view(), name='floorpass-list'),
+    # path('floorpass/<int:pk>/', api.FloorPassDetail.as_view(),
+    #      name='floorpass-detail'),
 
-    path('log/', api.LogList.as_view(), name='log-list'),
+    path('check_log/',api.checkNewLog),    
+
+    path('floorpass/',api.writeNewFloorpass),    
+    path('floorpass/<int:floorpass_id>/',api.writeFloorpass),    
+
+    path('log/', api.writeLog, name='log-create'),
     path('log/<int:pk>/', api.LogDetail.as_view(), name='log-detail'),
 
     path('user/', api.UserList.as_view(), name='user-list'),

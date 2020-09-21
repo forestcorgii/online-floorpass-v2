@@ -27,6 +27,7 @@ class FloorPassSerializer(serializers.ModelSerializer):
 
 class ListSerializer(serializers.Serializer):
     name = serializers.CharField(read_only=True)
+    
 
 # class FloorPassDetailSerializer(serializers.Serializer):
 #     id = serializers.CharField()
