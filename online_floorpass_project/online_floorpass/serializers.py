@@ -21,13 +21,13 @@ class FloorPassSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FloorPass
-        fields = ['id', 'department', 'location', 'status_label',
+        fields = ['id','reference_id', 'department', 'location', 'status_label',
                   'purpose', 'supervisor_id', 'supervisor_name', 'latest_log_date', 'employees', 'logs']
 
 
 class ListSerializer(serializers.Serializer):
     name = serializers.CharField(read_only=True)
-    
+
 
 # class FloorPassDetailSerializer(serializers.Serializer):
 #     id = serializers.CharField()

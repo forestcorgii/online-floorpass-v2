@@ -6,14 +6,16 @@ from enum import Enum
 from django.db import models
 from django.utils import timezone
 
-
+import datetime
 
 class Department(models.Model):
     name = models.CharField(max_length=100, primary_key=True)
+    name_accr = models.CharField(default='',max_length=6)
     objects = models.Manager()
 
 class Location(models.Model):
     name = models.CharField(max_length=100, primary_key=True)
+    name_accr = models.CharField(default='',max_length=6)
     departments = models.ManyToManyField(Department)
     objects = models.Manager()
 
@@ -26,14 +28,15 @@ class FloorPass(models.Model):
     purpose = models.TextField(blank=True, null=True)
     Status = models.IntegerChoices('Status', 'STAND_BY DEPARTED ARRIVED')
     status = models.IntegerField(choices=Status.choices, null=True)
-    # latest_log_date = models.DateTimeField(blank=True, null=True)
+    last_modified = models.DateTimeField(auto_now=datetime.datetime.today(), null=True)
     objects = models.Manager()
-
+    reference_id =  models.CharField(max_length=20,default='')
+    
     @property
     def latest_log_date(self):
         log_count = len(self.log_set.all())
         if log_count == 0:
-            return timezone.now().strftime("%m-%d %H:%M:%S")
+            return self.last_modified.strftime("%Y-%m-%d %H:%M:%S")
         else:
             return self.log_set.all()[log_count - 1].logdatetime_str
 
@@ -72,6 +75,8 @@ class FloorPass(models.Model):
     def completed(self):
         return len(self.log_set.all()) == 0 and self.location == self.current_location(self)
 
+    # def reference_id(self):
+    #     return ("{}{}{:06d}".format(self.location.name_accr,self.department.name_accr,self.id))
 
 class Log(models.Model):
     guard_id = models.CharField(max_length=4, blank=True, null=True)
@@ -89,8 +94,6 @@ class User(models.Model):
     floorpass = models.ForeignKey(FloorPass, on_delete=models.CASCADE)
     employee_id = models.CharField(max_length=4, null=True)
     employee_name = models.TextField(null=True)
-    
-
 
     def duplicate(self):
         return not self.objects.filter(Location, pk=self.employee_id) is None

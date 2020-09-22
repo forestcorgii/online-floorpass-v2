@@ -83,13 +83,19 @@ def list(request):
 @api_view(['POST'])
 def writeNewFloorpass(request):
     if request.method == 'POST':
+        department = Department.objects.get(name__iexact=request.POST['department'])
+        location = Location.objects.get(name__iexact=request.POST['location'])
         floorpass = FloorPass(
          supervisor_id=request.POST['supervisor_id'],
          supervisor_name=request.POST['supervisor_name'],
-         department=Department.objects.get(name__iexact=request.POST['department']),
-         location=Location.objects.get(name__iexact=request.POST['location']),
+         department=department,
+         location=location,
          purpose=request.POST['purpose'],
-         status=0
+         status=0,
+         reference_id="{}{}{:06d}".format(
+            location.name_accr,
+            department.name_accr,
+             len(FloorPass.objects.filter(department=department,location=location)))
         )
         floorpass.save()
             
@@ -98,6 +104,7 @@ def writeNewFloorpass(request):
                 userinf=i.split('|')
                 user = User(floorpass=floorpass,employee_id=userinf[0],employee_name=userinf[1]).save()
         return Response({'Response': 'may napala'})
+        
         
 @api_view(['POST'])
 def writeFloorpass(request,floorpass_id):
@@ -116,10 +123,15 @@ def writeFloorpass(request,floorpass_id):
                 user = User(floorpass=floorpass[0],employee_id=userinf[0],employee_name=userinf[1]).save()
         return Response({'Response':request.POST['employees'].split(';')})
 
+
 @api_view(['GET'])
 def checkNewLog(request):
     if request.method == 'GET':
-        floorpass = FloorPass.objects.all() 
+        # User.objects.all().delete()
+        # Log.objects.all().delete()
+        # FloorPass.objects.all().delete() 
+        floorpass = FloorPass.objects.all()
+        
         if request.GET.get('username', False) or request.GET['username'] !='':
             floorpass = floorpass.filter(
                 supervisor_id__iexact=request.GET['username'])
@@ -132,16 +144,12 @@ def checkNewLog(request):
 
         filtered = [x for x in floorpass if x.latest_log_date > request.GET['latest_log_date']]
 
-        # serializer = FloorPassSerializer(filtered, many=True)
-        # return Response({'new_log_count': len(filtered),'logs':serializer.data} )
         return Response({'new_logs_count':len(filtered)})
 
 
 class FloorPassList(generics.ListCreateAPIView):
     queryset = FloorPass.objects.all()
     serializer_class = FloorPassSerializer
-
-
 
 
 class FloorPassDetail(generics.RetrieveUpdateAPIView):
@@ -153,21 +161,23 @@ class LogList(generics.ListCreateAPIView):
     queryset = Log.objects.all()
     serializer_class = LogSerializer
 
+
 @api_view(['POST'])
 def writeLog(request):
     if request.method == 'POST':
-        floorpass = FloorPass.objects.get(pk=request.POST['floorpass']
-        # department=Department.objects.filter(name__iexact=request.GET['department'])[0].name
-        # location=Location.objects.filter(name__iexact=request.GET['location'])[0].name
-        )
-        log = Log(guard_id=request.POST['guard_id'], floorpass=floorpass, location=request.POST['location'])
-        log.save()
+        floorpass = [ x for x in FloorPass.objects.all() if x.reference_id == request.POST['floorpass']]
+        if floorpass != None and len(floorpass)>0:  
+            floorpass = floorpass[0]
+            log = Log(guard_id=request.POST['guard_id'], floorpass=floorpass, location=request.POST['location'])
+            log.save()
 
-        if len(floorpass.log_set.all()) > 1 and floorpass.location.name == request.POST['location']:
-            FloorPass.objects.filter(pk=floorpass.id).update(status=2)
+            if len(floorpass.log_set.all()) > 1 and floorpass.location.name == request.POST['location']:
+                FloorPass.objects.filter(pk=floorpass.id).update(status=2)
+            else:
+                FloorPass.objects.filter(pk=floorpass.id).update(status=1)
+            return Response({'Response': len(floorpass.log_set.all())})
         else:
-            FloorPass.objects.filter(pk=floorpass.id).update(status=1)
-        return Response({'Response': 'may napala'})
+            return Response({'Response': floorpass[0].reference_id})
 
 class LogDetail(generics.RetrieveUpdateAPIView):
     queryset = Log.objects.all()
