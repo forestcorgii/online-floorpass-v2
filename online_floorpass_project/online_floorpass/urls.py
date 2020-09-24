@@ -16,6 +16,10 @@ urlpatterns = format_suffix_patterns([
     # path('floorpass/<int:pk>/', api.FloorPassDetail.as_view(),
     #      name='floorpass-detail'),
 
+    path('guardlogin/',api.guardLogin),
+    
+    path('findlog/',api.findLog),
+    
     path('check_log/',api.checkNewLog),    
 
     path('floorpass/',api.writeNewFloorpass),    
