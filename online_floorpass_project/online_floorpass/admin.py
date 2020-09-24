@@ -1,10 +1,11 @@
 from django.contrib import admin
 
-from .models import Department, Location,FloorPass,Log,User
+from . import models
 
 # Register your models here.
-admin.site.register(Department)
-admin.site.register(Location)
-admin.site.register(FloorPass)
-admin.site.register(Log)
-admin.site.register(User)
+admin.site.register(models.Department)
+admin.site.register(models.Location)
+admin.site.register(models.FloorPass)
+admin.site.register(models.Log)
+admin.site.register(models.User)
+admin.site.register(models.GuardManager)
