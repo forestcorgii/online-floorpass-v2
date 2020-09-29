@@ -160,6 +160,7 @@ def writeFloorpass(request, floorpass_id):
         return Response({'Response': 'Deleted ' + floorpass_id})
 
 
+
 @api_view(['GET'])
 def checkNewLog(request):
     if request.method == 'GET':
@@ -196,6 +197,7 @@ class FloorPassDetail(generics.RetrieveUpdateAPIView):
 class LogList(generics.ListCreateAPIView):
     queryset = models.Log.objects.all()
     serializer_class = serializers.Log
+
 
 
 @api_view(['POST'])

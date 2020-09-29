@@ -96,6 +96,8 @@ class FloorPass(models.Model):
     # def reference_id(self):
     #     return ("{}{}{:06d}".format(self.location.name_accr,self.department.name_accr,self.id))
 
+    # def reference_id(self):
+    #     return ("{}{}{:06d}".format(self.location.name_accr,self.department.name_accr,self.id))
 
 class Log(models.Model):
     guard_id = models.CharField(max_length=4, blank=True, null=True)
