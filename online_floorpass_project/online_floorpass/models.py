@@ -103,7 +103,6 @@ class Log(models.Model):
     floorpass = models.ForeignKey(FloorPass, on_delete=models.CASCADE)
     location = models.CharField(max_length=100, null=True)
 
-    @property
     def logdatetime_str(self):
         return (self.logdatetime +
                 timedelta(hours=8)).strftime("%Y-%m-%d %I:%M:%S %p")

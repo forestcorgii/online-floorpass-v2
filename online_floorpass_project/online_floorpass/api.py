@@ -31,28 +31,33 @@ def guardLogin(request):
 def filter(request):
     if request.method == 'GET':
         floorpass = models.FloorPass.objects.all()
-        if request.GET.get('type', False) == 0:# supervisor
-            if request.GET.get('username', False) or request.GET['username'] != '':
+        if request.GET.get('type', False) == 0:  # supervisor
+            if request.GET.get('username',
+                               False) or request.GET['username'] != '':
                 floorpass = floorpass.filter(
-                    user__employee_id__contains=request.GET['username'])        
+                    user__employee_id__contains=request.GET['username'])
             if request.GET.get('department',
-                            False) or request.GET['department'] != '':
+                               False) or request.GET['department'] != '':
                 floorpass = floorpass.filter(
                     department=models.Department.objects.filter(
                         name__iexact=request.GET['department'])[0].name)
-            if request.GET.get('location', False) or request.GET['location'] != '':
+            if request.GET.get('location',
+                               False) or request.GET['location'] != '':
                 floorpass = floorpass.filter(
                     location=models.Location.objects.filter(
                         name__iexact=request.GET['location'])[0].name)
-        elif request.GET.get('type', False) == 0:# guard
-            if request.GET.get('location', False) or request.GET['location'] != '':
+        elif request.GET.get('type', False) == 0:  # guard
+            if request.GET.get('location',
+                               False) or request.GET['location'] != '':
                 floorpass = floorpass.filter(
-                location=models.Location.objects.filter(
-                name__iexact=request.GET['location'])[0].name)
+                    location=models.Location.objects.filter(
+                        name__iexact=request.GET['location'])[0].name)
         else:
-            return Response({'Response': 'type field not found.'})    
+            return Response({'Response': 'type field not found.'})
 
-        floorpass = sorted(floorpass,key=lambda f: f.latest_log_date,reverse=True)
+        floorpass = sorted(floorpass,
+                           key=lambda f: f.latest_log_date,
+                           reverse=True)
 
         logCount = len(floorpass)
         limitPerPage = 1
