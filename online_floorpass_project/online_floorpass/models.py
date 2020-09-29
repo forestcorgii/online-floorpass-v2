@@ -88,6 +88,11 @@ class FloorPass(models.Model):
         return len(self.log_set.all()
                    ) == 0 and self.location == self.current_location(self)
 
+    def report(self):
+        destinations = []
+        for l in log_set.all():
+            destination = {}
+
     # def reference_id(self):
     #     return ("{}{}{:06d}".format(self.location.name_accr,self.department.name_accr,self.id))
 

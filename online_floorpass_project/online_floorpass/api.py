@@ -24,33 +24,35 @@ def guardLogin(request):
             # if serializer.is_valid():
             return Response(serializer.data)
             # return Response(serializer.errors)
-        return Response({'response': 'invalid username or password'})
+        return Response({'Response': 'invalid username or password'})
 
 
 @api_view(['GET'])
 def filter(request):
     if request.method == 'GET':
         floorpass = models.FloorPass.objects.all()
-
-        if request.GET.get('username', False) or request.GET['username'] != '':
-            floorpass = floorpass.filter(
-                user__employee_id__contains=request.GET['username'])
-        # else:
-        if request.GET.get('department',
-                           False) or request.GET['department'] != '':
-            floorpass = floorpass.filter(
-                department=models.Department.objects.filter(
-                    name__iexact=request.GET['department'])[0].name)
-        if request.GET.get('location', False) or request.GET['location'] != '':
-            floorpass = floorpass.filter(
+        if request.GET.get('type', False) == 0:# supervisor
+            if request.GET.get('username', False) or request.GET['username'] != '':
+                floorpass = floorpass.filter(
+                    user__employee_id__contains=request.GET['username'])        
+            if request.GET.get('department',
+                            False) or request.GET['department'] != '':
+                floorpass = floorpass.filter(
+                    department=models.Department.objects.filter(
+                        name__iexact=request.GET['department'])[0].name)
+            if request.GET.get('location', False) or request.GET['location'] != '':
+                floorpass = floorpass.filter(
+                    location=models.Location.objects.filter(
+                        name__iexact=request.GET['location'])[0].name)
+        elif request.GET.get('type', False) == 0:# guard
+            if request.GET.get('location', False) or request.GET['location'] != '':
+                floorpass = floorpass.filter(
                 location=models.Location.objects.filter(
-                    name__iexact=request.GET['location'])[0].name)
+                name__iexact=request.GET['location'])[0].name)
+        else:
+            return Response({'Response': 'type field not found.'})    
 
-        if request.GET.get('sort', False):
-            if 'latest_log_date' in request.GET['sort']:
-                floorpass = sorted(floorpass,
-                                   key=lambda f: f.latest_log_date,
-                                   reverse='-' in request.GET['sort'])
+        floorpass = sorted(floorpass,key=lambda f: f.latest_log_date,reverse=True)
 
         logCount = len(floorpass)
         limitPerPage = 1
