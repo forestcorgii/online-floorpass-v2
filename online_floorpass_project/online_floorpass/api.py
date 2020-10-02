@@ -5,6 +5,7 @@ from . import models
 from . import serializers
 from django.http import JsonResponse, HttpResponse
 
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
 
@@ -30,52 +31,51 @@ def guardLogin(request):
 @api_view(['GET'])
 def filter(request):
     if request.method == 'GET':
-        floorpass = models.FloorPass.objects.all()
-        if request.GET.get('type', False) == 0:  # supervisor
+        log = models.Log.objects.all()
+        if request.GET.get('type', False) == 'Supervisor':  # supervisor
             if request.GET.get('username',
                                False) or request.GET['username'] != '':
-                floorpass = floorpass.filter(
-                    user__employee_id__contains=request.GET['username'])
+                log = log.filter(
+                    employee__employee_id__contains=request.GET['username'])
             if request.GET.get('department',
                                False) or request.GET['department'] != '':
-                floorpass = floorpass.filter(
-                    department=models.Department.objects.filter(
+                log = log.filter(
+                    floorpass__department=models.Department.objects.filter(
                         name__iexact=request.GET['department'])[0].name)
             if request.GET.get('location',
                                False) or request.GET['location'] != '':
-                floorpass = floorpass.filter(
-                    location=models.Location.objects.filter(
+                log = log.filter(
+                    floorpass__location=models.Location.objects.filter(
                         name__iexact=request.GET['location'])[0].name)
-        elif request.GET.get('type', False) == 0:  # guard
+        elif request.GET.get('type', False) == 'Guard':  # guard
             if request.GET.get('location',
                                False) or request.GET['location'] != '':
-                floorpass = floorpass.filter(
-                    location=models.Location.objects.filter(
+                log = log.filter(
+                    floorpass__location=models.Location.objects.filter(
                         name__iexact=request.GET['location'])[0].name)
         else:
-            return Response({'Response': 'type field not found.'})
+            return Response({'Response': 'type field not found.'},
+                            status=status.HTTP_404_NOT_FOUND)
+        log = log.distinct('logdatetime', 'floorpass', 'employee')
+        log = log.order_by('-logdatetime')
 
-        floorpass = sorted(floorpass,
-                           key=lambda f: f.latest_log_date,
-                           reverse=True)
-
-        logCount = len(floorpass)
+        logCount = len(log)
         limitPerPage = 1
         maxPageCount = 1
-        if request.GET.get('limit', False) and len(floorpass) != 0:
+        if request.GET.get('limit', False) and len(log) != 0:
             pageCount = int(request.GET['page'])
             limitPerPage = int(request.GET['limit'])
             i_range_start = (pageCount - 1) * limitPerPage
             i_range_end = i_range_start + limitPerPage
-            if i_range_end >= len(floorpass):
-                i_range_end = len(floorpass)
-            floorpass = floorpass[i_range_start:i_range_end]
+            if i_range_end >= len(log):
+                i_range_end = len(log)
+            log = log[i_range_start:i_range_end]
 
         if logCount > 0:
             maxPageCount = (logCount // limitPerPage) + (
                 1 if (logCount % limitPerPage) >= 1 else 0)
 
-        serializer = serializers.FloorPass(floorpass, many=True)
+        serializer = serializers.LogStrip(log, many=True)
         return Response({
             'maxPageCount': maxPageCount,
             'logCount': logCount,
@@ -118,7 +118,6 @@ def writeNewFloorpass(request):
             department=department,
             location=location,
             purpose=request.POST['purpose'],
-            status=0,
             reference_id="{}{}{:06d}".format(
                 location.name_accr, department.name_accr,
                 len(
@@ -129,56 +128,57 @@ def writeNewFloorpass(request):
         for i in request.POST['employees'].split(';'):
             if i != '':
                 userinf = i.split('|')
-                user = models.User(floorpass=floorpass,
-                                   employee_id=userinf[0],
-                                   employee_name=userinf[1]).save()
+                user, created = models.User.objects.get_or_create(
+                    employee_id=userinf[0].upper(), employee_name=userinf[1])
+                user.floorpasses.add(floorpass)
+                user.save()
+
         return Response({'Response': 'may napala'})
 
 
-@api_view(['POST', 'DELETE'])
-def writeFloorpass(request, floorpass_id):
-    if request.method == 'POST':
-        floorpass = models.FloorPass.objects.filter(pk=floorpass_id)
-        floorpass.update(
-            department=models.Department.objects.get(
-                name__iexact=request.POST['department']),
-            location=models.Location.objects.get(
-                name__iexact=request.POST['location']),
-            purpose=request.POST['purpose'],
-        )
-        floorpass[0].user_set.all().delete()
+# @api_view(['POST', 'DELETE'])
+# def writeFloorpass(request, floorpass_id):
+#     if request.method == 'POST':
+#         floorpass = models.FloorPass.objects.filter(pk=floorpass_id)
+#         floorpass.update(
+#             department=models.Department.objects.get(
+#                 name__iexact=request.POST['department']),
+#             location=models.Location.objects.get(
+#                 name__iexact=request.POST['location']),
+#             purpose=request.POST['purpose'],
+#         )
+#         floorpass[0].user_set.all().delete()
 
-        for i in request.POST['employees'].split(';'):
-            if i != '':
-                userinf = i.split('|')
-                user = models.User(floorpass=floorpass[0],
-                                   employee_id=userinf[0],
-                                   employee_name=userinf[1]).save()
-        return Response({'Response': request.POST['employees'].split(';')})
-    elif request.method == 'DELETE':
-        models.FloorPass.objects.filter(pk=floorpass_id)
-        return Response({'Response': 'Deleted ' + floorpass_id})
-
+#         for i in request.POST['employees'].split(';'):
+#             if i != '':
+#                 userinf = i.split('|')
+#                 user = models.User(floorpass=floorpass[0],
+#                                    employee_id=userinf[0],
+#                                    employee_name=userinf[1]).save()
+#         return Response({'Response': request.POST['employees'].split(';')})
+#     elif request.method == 'DELETE':
+#         models.FloorPass.objects.filter(pk=floorpass_id)
+#         return Response({'Response': 'Deleted ' + floorpass_id})
 
 
 @api_view(['GET'])
 def checkNewLog(request):
     if request.method == 'GET':
-        floorpass = models.FloorPass.objects.all()
+        log = models.Log.objects.all()
 
         if request.GET.get('department',
                            False) or request.GET['department'] != '':
-            floorpass = floorpass.filter(
-                department=models.Department.objects.filter(
+            log = log.filter(
+                floorpass__department=models.Department.objects.filter(
                     name__iexact=request.GET['department'])[0].name)
         if request.GET.get('location', False) or request.GET['location'] != '':
-            floorpass = floorpass.filter(
-                location=models.Location.objects.filter(
+            log = log.filter(
+                floorpass__location=models.Location.objects.filter(
                     name__iexact=request.GET['location'])[0].name)
 
         filtered = [
-            x for x in floorpass
-            if x.latest_log_date > request.GET['latest_log_date']
+            x for x in log
+            if x.logdatetime_str() > request.GET['latest_log_date']
         ]
 
         return Response({'new_logs_count': len(filtered)})
@@ -199,7 +199,6 @@ class LogList(generics.ListCreateAPIView):
     serializer_class = serializers.Log
 
 
-
 @api_view(['POST'])
 def writeLog(request):
     if request.method == 'POST':
@@ -207,19 +206,21 @@ def writeLog(request):
             x for x in models.FloorPass.objects.all()
             if x.reference_id == request.POST['floorpass']
         ]
+        user = models.User.objects.get(pk=request.POST['employee_id'])
+
         if floorpass != None and len(floorpass) > 0:
             floorpass = floorpass[0]
             log = models.Log(guard_id=request.POST['guard_id'],
                              floorpass=floorpass,
+                             employee=user,
                              location=request.POST['location'])
             log.save()
 
-            if len(floorpass.log_set.all(
-            )) > 1 and floorpass.location.name == request.POST['location']:
-                models.FloorPass.objects.filter(pk=floorpass.id).update(
+            if len(user.log_set.all()) > 1 and user.status == 1:
+                models.User.objects.filter(pk=user.employee_id).update(
                     status=2)
             else:
-                models.FloorPass.objects.filter(pk=floorpass.id).update(
+                models.User.objects.filter(pk=user.employee_id).update(
                     status=1)
             return Response({'Response': len(floorpass.log_set.all())})
         else:
@@ -229,23 +230,23 @@ def writeLog(request):
 @api_view(['GET'])
 def findLog(request):
     if request.method == 'GET':
-        floorpass = models.FloorPass.objects.filter(
-            user__employee_id__iexact=request.GET['id']).order_by(
-                '-last_modified')
-        if floorpass != None and floorpass.count() > 0:
-            serializer = serializers.FloorPass(floorpass[0])
-            # if serializer.is_valid():
-            if (datetime.today().replace(tzinfo=pytz.UTC) - timedelta(hours=11)
-                ) < floorpass[0].last_modified_ph.replace(tzinfo=pytz.UTC):
-                return Response(serializer.data)
-            return Response({
-                'Response': 'Too Late!!',
-                'date found': floorpass[0].last_modified_ph,
-                'date now': timezone.now(),
-                'Result': serializer.data
-            })
+        user = models.User.objects.get(pk=request.GET['id'].upper())
+
+        if user.floorpasses.all().count() > 0:
+            floorpass = user.floorpasses.all().latest('date_created')
+            if user.status == 2:
+                return Response({'Response': 'Not allowed'},
+                                status=status.HTTP_418_IM_A_TEAPOT)
+            elif (datetime.today().replace(tzinfo=pytz.UTC) -
+                  timedelta(hours=18)) > floorpass.date_created_ph.replace(
+                      tzinfo=pytz.UTC):
+                return Response({'Response': 'Floorpass already expired'})
+            else:
+                return Response({'Response': 'Allowed'},
+                                status=status.HTTP_200_OK)
         else:
-            return Response({'Response': request.GET['id']})
+            return Response({'Response': 'ID not Found'},
+                            status=status.HTTP_404_NOT_FOUND)
 
 
 class LogDetail(generics.RetrieveUpdateAPIView):

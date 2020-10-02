@@ -7,6 +7,7 @@ from django.db import models
 from django.utils import timezone
 
 import datetime
+import json
 
 
 class Department(models.Model):
@@ -30,12 +31,35 @@ class FloorPass(models.Model):
     supervisor_id = models.CharField(max_length=4, blank=True, null=True)
     supervisor_name = models.CharField(max_length=100, blank=True, null=True)
     purpose = models.TextField(blank=True, null=True)
+    reference_id = models.CharField(max_length=20, default='')
+    date_created = models.DateTimeField(auto_now_add=True, null=True)
+
+    @property
+    def date_created_ph(self):
+        return (self.date_created + timedelta(hours=8))
+
+    def reports(self):
+        # return [{'dada': 'dada'}]
+        reports = []
+        for u in self.user_set.all():
+            reports.append({
+                'employee': u.employee_id,
+                'report': u.report(self)
+            })
+
+        return reports
+
+
+class User(models.Model):
+    employee_id = models.CharField(max_length=4, primary_key=True, unique=True)
+    employee_name = models.TextField(null=True)
+
+    floorpasses = models.ManyToManyField(FloorPass)
+
     Status = models.IntegerChoices('Status', 'STAND_BY DEPARTED ARRIVED')
-    status = models.IntegerField(choices=Status.choices, null=True)
+    status = models.IntegerField(choices=Status.choices, default=0, null=True)
     last_modified = models.DateTimeField(auto_now=datetime.datetime.now,
                                          null=True)
-    objects = models.Manager()
-    reference_id = models.CharField(max_length=20, default='')
 
     @property
     def last_modified_ph(self):
@@ -48,7 +72,7 @@ class FloorPass(models.Model):
             return (self.last_modified +
                     timedelta(hours=8)).strftime("%Y-%m-%d %I:%M:%S %p")
         else:
-            return self.log_set.all()[log_count - 1].logdatetime_str
+            return self.log_set.all()[log_count - 1].logdatetime_str()
 
     def status_label(self):
         if self.status is None:
@@ -62,45 +86,69 @@ class FloorPass(models.Model):
         else:
             return self.log_set.order_by('logdatetime')[0].location
 
-    def timein(self):
-        if len(self.log_set.all()) == 0:
-            return ''
-        else:
-            return self.log_set.all()[0].logdatetime_str
-
-    def timeout(self):
-        log_count = len(self.log_set.all())
-        if log_count <= 1:
-            return ''
-        elif log_count > 1 and self.location.name == self.log_set.all()[
-                log_count - 1].location:
-            return self.log_set.all()[log_count - 1].logdatetime_str
-
-    def time_elapse(self):
-        log_count = len(self.log_set.all())
-        if log_count <= 1:
-            return ''
-        else:
-            return str(self.log_set.all()[log_count - 1].logdatetime -
-                       self.log_set.all()[0].logdatetime).split(".")[0]
-
     def completed(self):
         return len(self.log_set.all()
                    ) == 0 and self.location == self.current_location(self)
 
-    def report(self):
+    def report(self, floorpass_id):
+        # return [{'dada': 'dada'}]
         destinations = []
-        for l in log_set.all():
-            destination = {}
+        destination = {}
+        for l in self.log_set.filter(floorpass=floorpass_id):
+            if destination == {}:
+                destination['from'] = {'loc': l.location, 'at': l.logdatetime}
+                if len(destinations) > 0:
+                    prevdes = destinations[-1]
+                    p2pelapse = {
+                        'from': prevdes['to'],
+                        'to': destination['from']
+                    }
+                    p2pelapse['elapse'] = str(p2pelapse['to']['at'] -
+                                              p2pelapse['from']['at']).split(
+                                                  '.')[0]
+                    destinations.append(p2pelapse)
+            else:
+                destination['to'] = {'loc': l.location, 'at': l.logdatetime}
+                destination['elapse'] = str(destination['to']['at'] -
+                                            destination['from']['at']).split(
+                                                '.')[0]
+                destinations.append(destination)
+                destination = {}
 
-    # def reference_id(self):
-    #     return ("{}{}{:06d}".format(self.location.name_accr,self.department.name_accr,self.id))
+        return destinations
 
-    # def reference_id(self):
-    #     return ("{}{}{:06d}".format(self.location.name_accr,self.department.name_accr,self.id))
+    # def report(self):
+    #     # return [{'dada': 'dada'}]
+
+    #     destinations = []
+    #     destination = {}
+    #     for l in self.log_set.filter(floorpass=floorpass_id):
+    #         if destination == {}:
+    #             destination['from'] = {'loc': l.location, 'at': l.logdatetime}
+    #             if len(destinations) > 0:
+    #                 prevdes = destinations[-1]
+    #                 p2pelapse = {
+    #                     'from': prevdes['to'],
+    #                     'to': destination['from']
+    #                 }
+    #                 p2pelapse['elapse'] = str(p2pelapse['to']['at'] -
+    #                                           p2pelapse['from']['at']).split(
+    #                                               '.')[0]
+    #                 destinations.append(p2pelapse)
+    #         else:
+    #             destination['to'] = {'loc': l.location, 'at': l.logdatetime}
+    #             destination['elapse'] = str(destination['to']['at'] -
+    #                                         destination['from']['at']).split(
+    #                                             '.')[0]
+    #             destinations.append(destination)
+    #             destination = {}
+
+    #     return destinations
+
 
 class Log(models.Model):
     guard_id = models.CharField(max_length=4, blank=True, null=True)
+    employee = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
     logdatetime = models.DateTimeField(auto_now_add=True)
     floorpass = models.ForeignKey(FloorPass, on_delete=models.CASCADE)
     location = models.CharField(max_length=100, null=True)
@@ -108,15 +156,6 @@ class Log(models.Model):
     def logdatetime_str(self):
         return (self.logdatetime +
                 timedelta(hours=8)).strftime("%Y-%m-%d %I:%M:%S %p")
-
-
-class User(models.Model):
-    floorpass = models.ForeignKey(FloorPass, on_delete=models.CASCADE)
-    employee_id = models.CharField(max_length=4, null=True)
-    employee_name = models.TextField(null=True)
-
-    def duplicate(self):
-        return not self.objects.filter(Location, pk=self.employee_id) is None
 
 
 class GuardManager(models.Model):

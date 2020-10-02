@@ -5,7 +5,7 @@ from . import models
 class Log(serializers.ModelSerializer):
     class Meta:
         model = models.Log
-        fields = ['id','guard_id','logdatetime_str','location','floorpass']
+        fields = '__all__'
 
 
 class User(serializers.ModelSerializer):
@@ -15,14 +15,43 @@ class User(serializers.ModelSerializer):
 
 
 class FloorPass(serializers.ModelSerializer):
-    logs = Log(many=True, read_only=True, source='log_set')
     employees = User(many=True, read_only=True, source='user_set')
+
     # latest_log_date = serializers.CharField(source='owner.latest_log_date')
 
     class Meta:
         model = models.FloorPass
-        fields = ['id','reference_id', 'department', 'location', 'status_label',
-                  'purpose', 'supervisor_id', 'supervisor_name', 'latest_log_date', 'employees', 'logs']
+        fields = [
+            'id', 'reference_id', 'department', 'location', 'purpose',
+            'supervisor_id', 'employees', 'reports'
+        ]
+
+
+class LogStrip(serializers.ModelSerializer):
+    floorpass_id = serializers.CharField(read_only=True,
+                                         source='floorpass.id',
+                                         default='')
+    employee_id = serializers.CharField(read_only=True,
+                                        source='employee.employee_id',
+                                        default='')
+    reference_id = serializers.CharField(read_only=True,
+                                         source='floorpass.reference_id')
+    supervisor_id = serializers.CharField(read_only=True,
+                                          source='floorpass.supervisor_id')
+    department = serializers.CharField(read_only=True,
+                                       source='floorpass.department.name')
+    location = serializers.CharField(read_only=True,
+                                     source='floorpass.location.name')
+    purpose = serializers.CharField(read_only=True, source='floorpass.purpose')
+    status = serializers.CharField(read_only=True,
+                                   source='employee.status_label')
+
+    class Meta:
+        model = models.Log
+        fields = [
+            'employee_id', 'supervisor_id', 'floorpass_id', 'reference_id',
+            'department', 'location', 'purpose', 'status', 'logdatetime_str'
+        ]
 
 
 class List(serializers.Serializer):
@@ -32,7 +61,8 @@ class List(serializers.Serializer):
 class Guard(serializers.ModelSerializer):
     class Meta:
         model = models.GuardManager
-        fields = ['username','fullname']
+        fields = ['username', 'fullname']
+
 
 # class FloorPassDetailSerializer(serializers.Serializer):
 #     id = serializers.CharField()
