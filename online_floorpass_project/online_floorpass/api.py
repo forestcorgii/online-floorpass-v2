@@ -1,5 +1,7 @@
+from django.urls.base import is_valid_path
 from rest_framework import generics
 from rest_framework.decorators import api_view
+from rest_framework.serializers import Serializer
 
 from . import models
 from . import serializers
@@ -25,7 +27,17 @@ def guardLogin(request):
             # if serializer.is_valid():
             return Response(serializer.data)
             # return Response(serializer.errors)
-        return Response({'Response': 'invalid username or password'})
+        return Response({'response': 'invalid username or password'})
+
+
+@api_view(['GET'])
+def filterEmployeeReport(request):
+    if request.method == 'GET':
+        user = models.User.objects.get(pk=request.GET['id'])
+        return Response({
+            'employee_id': user.employee_id,
+            'reports': user.reports(request.GET['datefrom'])
+        })
 
 
 @api_view(['GET'])
@@ -50,11 +62,10 @@ def filter(request):
         elif request.GET.get('type', False) == 'Guard':  # guard
             if request.GET.get('location',
                                False) or request.GET['location'] != '':
-                log = log.filter(
-                    floorpass__location=models.Location.objects.filter(
-                        name__iexact=request.GET['location'])[0].name)
+                log = log.filter(location=models.Location.objects.filter(
+                    name__iexact=request.GET['location'])[0].name)
         else:
-            return Response({'Response': 'type field not found.'},
+            return Response({'response': 'type field not found.'},
                             status=status.HTTP_404_NOT_FOUND)
         log = log.distinct('logdatetime', 'floorpass', 'employee')
         log = log.order_by('-logdatetime')
@@ -129,11 +140,14 @@ def writeNewFloorpass(request):
             if i != '':
                 userinf = i.split('|')
                 user, created = models.User.objects.get_or_create(
-                    employee_id=userinf[0].upper(), employee_name=userinf[1])
+                    employee_id=userinf[0].upper(),
+                    employee_name=userinf[1].title())
+
                 user.floorpasses.add(floorpass)
+                user.status = 0
                 user.save()
 
-        return Response({'Response': 'may napala'})
+        return Response({'response': 'may napala'})
 
 
 # @api_view(['POST', 'DELETE'])
@@ -206,7 +220,7 @@ def writeLog(request):
             x for x in models.FloorPass.objects.all()
             if x.reference_id == request.POST['floorpass']
         ]
-        user = models.User.objects.get(pk=request.POST['employee_id'])
+        user = models.User.objects.get(pk=request.POST['employee_id'].upper())
 
         if floorpass != None and len(floorpass) > 0:
             floorpass = floorpass[0]
@@ -216,36 +230,56 @@ def writeLog(request):
                              location=request.POST['location'])
             log.save()
 
-            if len(user.log_set.all()) > 1 and user.status == 1:
+            if len(
+                    user.log_set.all()
+            ) > 1 and user.status == 1 and floorpass.location.name == request.POST[
+                    'location']:
                 models.User.objects.filter(pk=user.employee_id).update(
                     status=2)
             else:
                 models.User.objects.filter(pk=user.employee_id).update(
                     status=1)
-            return Response({'Response': len(floorpass.log_set.all())})
+            return Response({'response': len(floorpass.log_set.all())})
         else:
-            return Response({'Response': floorpass[0].reference_id})
+            return Response({'response': floorpass[0].reference_id})
 
 
 @api_view(['GET'])
 def findLog(request):
     if request.method == 'GET':
         user = models.User.objects.get(pk=request.GET['id'].upper())
-
         if user.floorpasses.all().count() > 0:
-            floorpass = user.floorpasses.all().latest('date_created')
+            floorpass = user.floorpasses.all().last()
             if user.status == 2:
-                return Response({'Response': 'Not allowed'},
-                                status=status.HTTP_418_IM_A_TEAPOT)
+                return Response(
+                    {
+                        'response':
+                        'Floorpass has already been used, generate another floorpass.'
+                    },
+                    status=status.HTTP_418_IM_A_TEAPOT)
+            elif user.status == 0 and floorpass.location.name != request.GET[
+                    'location']:
+                return Response(
+                    {
+                        'response':
+                        'Your first log should start in {}'.format(
+                            floorpass.location.name)
+                    },
+                    status=status.HTTP_418_IM_A_TEAPOT)
             elif (datetime.today().replace(tzinfo=pytz.UTC) -
                   timedelta(hours=18)) > floorpass.date_created_ph.replace(
                       tzinfo=pytz.UTC):
-                return Response({'Response': 'Floorpass already expired'})
+                return Response({'response': 'Floorpass already expired'})
             else:
-                return Response({'Response': 'Allowed'},
-                                status=status.HTTP_200_OK)
+                serializer = serializers.FloorPass(floorpass)
+                return Response(
+                    {
+                        'response': 'Allowed',
+                        'floorpass': serializer.data
+                    },
+                    status=status.HTTP_200_OK)
         else:
-            return Response({'Response': 'ID not Found'},
+            return Response({'response': 'ID not Found'},
                             status=status.HTTP_404_NOT_FOUND)
 
 

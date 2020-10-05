@@ -39,7 +39,6 @@ class FloorPass(models.Model):
         return (self.date_created + timedelta(hours=8))
 
     def reports(self):
-        # return [{'dada': 'dada'}]
         reports = []
         for u in self.user_set.all():
             reports.append({
@@ -117,33 +116,19 @@ class User(models.Model):
 
         return destinations
 
-    # def report(self):
-    #     # return [{'dada': 'dada'}]
+    def reports(self, datefrom):
+        reports = []
+        floorpasses = self.floorpasses.all().order_by('-date_created')
+        if datefrom != '':
+            floorpasses = self.floorpasses.filter(
+                date_created__gte=datefrom).order_by('-date_created')
+        for u in floorpasses:
+            reports.append({
+                'reference_id': u.reference_id,
+                'report': self.report(u)
+            })
 
-    #     destinations = []
-    #     destination = {}
-    #     for l in self.log_set.filter(floorpass=floorpass_id):
-    #         if destination == {}:
-    #             destination['from'] = {'loc': l.location, 'at': l.logdatetime}
-    #             if len(destinations) > 0:
-    #                 prevdes = destinations[-1]
-    #                 p2pelapse = {
-    #                     'from': prevdes['to'],
-    #                     'to': destination['from']
-    #                 }
-    #                 p2pelapse['elapse'] = str(p2pelapse['to']['at'] -
-    #                                           p2pelapse['from']['at']).split(
-    #                                               '.')[0]
-    #                 destinations.append(p2pelapse)
-    #         else:
-    #             destination['to'] = {'loc': l.location, 'at': l.logdatetime}
-    #             destination['elapse'] = str(destination['to']['at'] -
-    #                                         destination['from']['at']).split(
-    #                                             '.')[0]
-    #             destinations.append(destination)
-    #             destination = {}
-
-    #     return destinations
+        return reports
 
 
 class Log(models.Model):
